@@ -416,33 +416,36 @@ Output ONLY JSON: {"alignment": <0-100>, "phase": "<RECON|LATERAL_MOVEMENT|EXPLO
                             p = result.get("phase", self._determine_phase(observation, env_info))
                             result["headline"] = PHASE_HEADLINES.get(p, "Cognitive Trace Analyzed")
                         return result
+                    except Exception:
+                        pass
 
             # Try LM Studio fallback
             if self.client:
-                response = self.client.chat.completions.create(
-                    model="local-model",
-                    messages=[
-                        {"role": "system", "content": self.SYSTEM},
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=0.1,
-                    max_tokens=128
-                )
-                raw = response.choices[0].message.content.replace("```json", "").replace("```", "").strip()
-                import re
-                matches = re.findall(r'\{[^{}]+\}', raw)
-                if matches:
-                    result = json.loads(matches[-1])
-                    llm_score = int(result.get("alignment", heuristic))
-                    blended = int((llm_score * 0.6) + (heuristic * 0.4))
-                    result["alignment"] = max(0, min(100, blended))
-                    # Inject dynamic headline if LLM didn't return one
-                    if "headline" not in result:
-                        p = result.get("phase", self._determine_phase(observation, env_info))
-                        result["headline"] = PHASE_HEADLINES.get(p, "Cognitive Trace Analyzed")
-                    return result
-        except Exception as e:
-            pass
+                try:
+                    response = self.client.chat.completions.create(
+                        model="local-model",
+                        messages=[
+                            {"role": "system", "content": self.SYSTEM},
+                            {"role": "user", "content": prompt}
+                        ],
+                        temperature=0.1,
+                        max_tokens=128
+                    )
+                    raw = response.choices[0].message.content.replace("```json", "").replace("```", "").strip()
+                    import re
+                    matches = re.findall(r'\{[^{}]+\}', raw)
+                    if matches:
+                        result = json.loads(matches[-1])
+                        llm_score = int(result.get("alignment", heuristic))
+                        blended = int((llm_score * 0.6) + (heuristic * 0.4))
+                        result["alignment"] = max(0, min(100, blended))
+                        # Inject dynamic headline if LLM didn't return one
+                        if "headline" not in result:
+                            p = result.get("phase", self._determine_phase(observation, env_info))
+                            result["headline"] = PHASE_HEADLINES.get(p, "Cognitive Trace Analyzed")
+                        return result
+                except Exception:
+                    pass
 
         phase = self._determine_phase(observation, env_info)
         headline = PHASE_HEADLINES.get(phase, "Cognitive Trace Analyzed")
